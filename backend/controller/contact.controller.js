@@ -1,5 +1,6 @@
 const { z } = require("zod");
 const nodemailer = require("nodemailer");
+const logger = require('../utils/logger');
 require("dotenv").config();
 
 // data require form .env file : EMAIL_USER, EMAIL_PASS
