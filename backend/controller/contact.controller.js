@@ -57,15 +57,7 @@ const createContactUs = async (req, res) => {
     };
 
     // Send mail with defined transport object
-    await new Promise((resolve, reject) => {
-      transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-          console.error("Error occurred: " + error.message);
-          reject(error);
-        }
-        resolve(info);
-      });
-    });
+    await transporter.sendMail(mailOptions);
 
     res.status(200).json({
       status: "success",
