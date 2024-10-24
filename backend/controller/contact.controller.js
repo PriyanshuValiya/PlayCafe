@@ -6,9 +6,9 @@ require("dotenv").config();
 
 // Define the Zod schema for contact form validation
 const contactSchema = z.object({
-  mail: z.string().email(),
-  subject: z.string().min(5, "Subject must be at least 5 characters long."),
-  message: z.string().min(5, "Message must be at least 5 characters long."),
+   mail: z.string().email("Please provide a valid email address").max(255, "Email must not exceed 255 characters"),
+   subject: z.string().min(5, "Subject must be at least 5 characters long.").max(200, "Subject must not exceed 200 characters"),
+   message: z.string().min(5, "Message must be at least 5 characters long.").max(5000, "Message must not exceed 5000 characters"),
 });
 
 const createContactUs = async (req, res) => {
@@ -34,16 +34,25 @@ const createContactUs = async (req, res) => {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
-        tls: {
-          rejectUnauthorized: false, // Disable strict SSL verification
-        },
+         pool: true,
+         maxConnections: 5,
+         maxMessages: 100,
+         rateDelta: 1000,
+         rateLimit: 5,
+         timeout: 5000,
     });
 
+    const sanitizeInput = (str) => {
+       return str.replace(/[<>]/g, '').trim();
+    };
+
     const mailOptions = {
-      from: mail,
+      // from: mail,
+      from: `"Contact Form" <${process.env.EMAIL_USER}>`,
+      replyTo: sanitizeInput(mail),
       to: process.env.EMAIL_USER,
-      subject: subject,
-      text: message,
+      subject: sanitizeInput(subject),
+      text: sanitizeInput(message),
     };
 
     // Send mail with defined transport object
@@ -62,12 +71,22 @@ const createContactUs = async (req, res) => {
       message: "Your contact request has been successfully received.",
     });
   } catch (err) {
-    console.error(`Error at transport: ${err}`);
-    res.status(500).json({
-      status: "error",
-      message:
-        "There was an error sending your message. Please try again later.",
-    });
+  logger.error('Email sending failed', {
+    error: err.message,
+    requestId: req.id,
+    userEmail: mail,
+  });
+
+  const statusCode = err.code === 'EAUTH' ? 401 : 500;
+  const errorMessage = process.env.NODE_ENV === 'production'
+    ? 'There was an error sending your message. Please try again later.'
+    : err.message;
+
+  res.status(statusCode).json({
+     status: "error",
+    message: errorMessage,
+    requestId: req.id,
+   });
   }
 };
 
